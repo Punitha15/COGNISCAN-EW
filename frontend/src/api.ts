@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { SimulationStateSnapshot, BenchmarkPayload } from './types';
 
-const API_BASE = 'http://localhost:8000/api';
-const WS_URL = 'ws://localhost:8000/ws/live';
+const API_BASE = '/api';
+const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws/live`;
 
 export async function fetchStatus(): Promise<SimulationStateSnapshot> {
   const res = await fetch(`${API_BASE}/status`);
@@ -12,6 +13,11 @@ export async function fetchStatus(): Promise<SimulationStateSnapshot> {
 
 export async function startSimulation() {
   const res = await fetch(`${API_BASE}/simulation/start`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.statusText);
+    console.error('startSimulation failed:', res.status, err);
+    throw new Error(`startSimulation failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -65,6 +71,11 @@ export async function runBenchmark(slots = 100, preset = 'Dense Spectrum'): Prom
 
 export async function startJudgeDemo() {
   const res = await fetch(`${API_BASE}/demo/start`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.statusText);
+    console.error('startJudgeDemo failed:', res.status, err);
+    throw new Error(`startJudgeDemo failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -164,13 +175,13 @@ export function useLiveSimulation() {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ action, ...payload }));
     } else {
-      if (action === 'start') startSimulation();
-      else if (action === 'pause') pauseSimulation();
-      else if (action === 'reset') resetSimulation();
-      else if (action === 'step') stepSimulation();
-      else if (action === 'anomaly') triggerAnomaly();
-      else if (action === 'demo_start') startJudgeDemo();
-      else if (action === 'demo_stop') stopJudgeDemo();
+      if (action === 'start') startSimulation().catch((e) => console.error('START failed:', e));
+      else if (action === 'pause') pauseSimulation().catch((e) => console.error('PAUSE failed:', e));
+      else if (action === 'reset') resetSimulation().catch((e) => console.error('RESET failed:', e));
+      else if (action === 'step') stepSimulation().catch((e) => console.error('STEP failed:', e));
+      else if (action === 'anomaly') triggerAnomaly().catch((e) => console.error('ANOMALY failed:', e));
+      else if (action === 'demo_start') startJudgeDemo().catch((e) => console.error('DEMO START failed:', e));
+      else if (action === 'demo_stop') stopJudgeDemo().catch((e) => console.error('DEMO STOP failed:', e));
     }
   }, []);
 
